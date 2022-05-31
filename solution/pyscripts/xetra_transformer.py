@@ -1,10 +1,9 @@
 """Xetra ETL Component"""
-
-from typing import NamedTuple
 import logging
+from datetime import datetime
+from typing import NamedTuple
 
 import pandas as pd
-from datetime import datetime, timedelta
 
 from xetra.common.s3 import S3BucketConnector
 from xetra.common.meta_process import MetaProcess
@@ -13,15 +12,15 @@ class XetraSourceConfig(NamedTuple):
     """
     Class for source configuration data
 
-    src_first_extract_date: determines the data for extracting the source
+    src_first_extract_date: determines the date for extracting the source
     src_columns: source column names
     src_col_date: column name for date in source
     src_col_isin: column name for isin in source
     src_col_time: column name for time in source
     src_col_start_price: column name for starting price in source
-    src_col_min_pirce: column name for minimum price in source
+    src_col_min_price: column name for minimum price in source
     src_col_max_price: column name for maximum price in source
-    src_col_traded_col: column name for traded volume in source
+    src_col_traded_vol: column name for traded volumne in source
     """
     src_first_extract_date: str
     src_columns: list
@@ -33,21 +32,22 @@ class XetraSourceConfig(NamedTuple):
     src_col_max_price: str
     src_col_traded_vol: str
 
+
 class XetraTargetConfig(NamedTuple):
     """
     Class for target configuration data
 
     trg_col_isin: column name for isin in target
-    trg_col_date: column name for data in target
+    trg_col_date: column name for date in target
     trg_col_op_price: column name for opening price in target
     trg_col_clos_price: column name for closing price in target
     trg_col_min_price: column name for minimum price in target
     trg_col_max_price: column name for maximum price in target
     trg_col_dail_trad_vol: column name for daily traded volume in target
-    trg_col_ch_prev_clos: columne name for change to previous day's closing price in target
+    trg_col_ch_prev_clos: column name for change to previous day's closing price in target
     trg_key: basic key of target file
     trg_key_date_format: date format of target file key
-    trg_format: file format of target file
+    trg_format: file format of the target file
     """
     trg_col_isin: str
     trg_col_date: str
@@ -63,22 +63,20 @@ class XetraTargetConfig(NamedTuple):
 
 class XetraETL():
     """
-    Reads the Xetra data, transforms, and writes the transformed to target
+    Reads the Xetra data, transforms and writes the transformed to target
     """
 
     def __init__(self, s3_bucket_src: S3BucketConnector,
-                 s3_bucket_trg: S3BucketConnector,
-                 meta_key: str,
-                 src_args: XetraSourceConfig,
-                 trg_args: XetraTargetConfig):
+                 s3_bucket_trg: S3BucketConnector, meta_key: str,
+                 src_args: XetraSourceConfig, trg_args: XetraTargetConfig):
         """
         Constructor for XetraTransformer
 
-        :param s3_bucket_src: s3_bucket_src
-        :param s3_bucket_trg: s3_bucket_trg
+        :param s3_bucket_src: connection to source S3 bucket
+        :param s3_bucket_trg: connection to target S3 bucket
         :param meta_key: used as self.meta_key -> key of meta file
-        :param src_args: NamedTuple class with source configuration data
-        :param trg_args: NamedTuple class with target configuration
+        :param src_args: NamedTouple class with source configuration data
+        :param trg_args: NamedTouple class with target configuration data
         """
         self._logger = logging.getLogger(__name__)
         self.s3_bucket_src = s3_bucket_src
@@ -88,14 +86,15 @@ class XetraETL():
         self.trg_args = trg_args
         self.extract_date, self.extract_date_list = MetaProcess.return_date_list(
             self.src_args.src_first_extract_date, self.meta_key, self.s3_bucket_trg)
-        self.meta_update_list = None
+        self.meta_update_list = [date for date in self.extract_date_list\
+            if date >= self.extract_date]
 
     def extract(self):
         """
-        Read the source data and concatenate them to one Pandas DataFrame
+        Read the source data and concatenates them to one Pandas DataFrame
 
         :returns:
-          data_frame: Pandas DataFrame with the extract data
+          data_frame: Pandas DataFrame with the extracted data
         """
         self._logger.info('Extracting Xetra source files started...')
         files = [key for date in self.extract_date_list\
@@ -104,11 +103,11 @@ class XetraETL():
             data_frame = pd.DataFrame()
         else:
             data_frame = pd.concat([self.s3_bucket_src.read_csv_to_df(file)\
-                 for file in files], ignore_index=True)
-        self._logger.info('Extracting Xetra source files finished')
+                for file in files], ignore_index=True)
+        self._logger.info('Extracting Xetra source files finished.')
         return data_frame
 
-    def transform_report1(self, data_frame: pd.DataFrame()):
+    def transform_report1(self, data_frame: pd.DataFrame):
         """
         Applies the necessary transformation to create report 1
 
@@ -175,16 +174,16 @@ class XetraETL():
         self._logger.info('Applying transformations to Xetra source data finished...')
         return data_frame
 
-    def load(self, data_frame):
+    def load(self, data_frame: pd.DataFrame):
         """
-        Saves a Pandas DataFrame to the target bucket
+        Saves a Pandas DataFrame to the target
 
         :param data_frame: Pandas DataFrame as Input
         """
         # Creating target key
         target_key = (
             f'{self.trg_args.trg_key}'
-            f'{datetime.today().strftime(self.trg_args.trg_key_date_format)}'
+            f'{datetime.today().strftime(self.trg_args.trg_key_date_format)}.'
             f'{self.trg_args.trg_format}'
         )
         # Writing to target
@@ -192,7 +191,7 @@ class XetraETL():
         self._logger.info('Xetra target data successfully written.')
         # Updating meta file
         MetaProcess.update_meta_file(self.meta_update_list, self.meta_key, self.s3_bucket_trg)
-        self._logger.info('Xetra meta file successfully updated')
+        self._logger.info('Xetra meta file successfully updated.')
         return True
 
     def etl_report1(self):

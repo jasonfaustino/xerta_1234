@@ -5,26 +5,26 @@ s3:
   src_endpoint_url: 'https://s3.amazonaws.com'
   src_bucket: 'deutsche-boerse-xetra-pds'
   trg_endpoint_url: 'https://s3.amazonaws.com'
-  trg_bucket: 'xetra-12345-jason'
-
+  trg_bucket: 'xetra-1234'
+  
 # configuration specific to the source
 source:
-  src_first_extract_date: '2022-05-10'
+  src_first_extract_date: '2021-06-24'
   src_columns: ['ISIN', 'Mnemonic', 'Date', 'Time', 'StartPrice', 'EndPrice', 'MinPrice', 'MaxPrice', 'TradedVolume']
-  src_col_date : 'Date'
-  src_col_isin : 'ISIN'
-  src_col_time : 'Time'
-  src_col_min_price : 'MinPrice'
-  src_col_start_price : 'StartPrice'
-  src_col_max_price : 'MaxPrice'
-  src_col_traded_vol : 'TradedVolume'
-
-# configuration specific to the target
+  src_col_date: 'Date'
+  src_col_isin: 'ISIN'
+  src_col_time: 'Time'
+  src_col_min_price: 'MinPrice'
+  src_col_start_price: 'StartPrice'
+  src_col_max_price: 'MaxPrice'
+  src_col_traded_vol: 'TradedVolume'
+  
+# configuration specific to the source
 target:
   trg_key: 'report1/xetra_daily_report1_'
   trg_key_date_format: '%Y%m%d_%H%M%S'
   trg_format: 'parquet'
-  trg_col_isin: 'isis'
+  trg_col_isin: 'isin'
   trg_col_date: 'date'
   trg_col_op_price: 'opening_price_eur'
   trg_col_clos_price: 'closing_price_eur'
@@ -36,7 +36,7 @@ target:
 # configuration specific to the meta file
 meta:
   meta_key: 'meta/report1/xetra_report1_meta_file.csv'
-  
+
 # Logging configuration
 logging:
   version: 1
@@ -47,7 +47,7 @@ logging:
     console:
       class: logging.StreamHandler
       formatter: xetra
-      level : DEBUG
+      level: DEBUG
   root:
     level: DEBUG
-    handlers: [console]
+    handlers: [ console ]
